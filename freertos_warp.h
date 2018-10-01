@@ -17,6 +17,7 @@
 extern "C" {
 #endif
 
+
 #include <stdint.h>
 #include <stdbool.h>
 #include "pthread.h"
@@ -24,6 +25,7 @@ extern "C" {
 //                  Constant Definition
 //=============================================================================
 #define portMAX_DELAY       (-1)
+#define portTICK_PERIOD_MS  (1)
 
 #define portCHAR		    char
 #define portFLOAT		    float
@@ -35,6 +37,9 @@ extern "C" {
 #define pdFALSE	            false
 #define pdTRUE	            true
 
+#define pdPASS			    pdTRUE
+#define pdFAIL			    pdFALSE
+
 typedef long                BaseType_t;
 typedef unsigned long       UBaseType_t;
 typedef unsigned long       TickType_t;
@@ -45,10 +50,31 @@ typedef uint32_t            SemaphoreHandle_t;
 //=============================================================================
 //                  Macro Definition
 //=============================================================================
+#define pvPortMalloc                        malloc
+#define vPortFree                           free
+
 #define vTaskDelete(xTaskToDelete)          vTaskDelete_wrap(0)
 #define vTaskSuspend(xTaskToSuspend)        vTaskSuspend_wrap(&xTaskToSuspend)
 #define vTaskResume(xTaskToResume)          vTaskResume_wrap(&xTaskToResume)
 
+#define xSemaphoreCreateBinary()            xSemaphoreCreateMutex()
+#define vTaskSuspendAll()
+#define xTaskResumeAll()
+
+#define xSemaphoreCreateCounting(uxMaxCount, uxInitialCount)    xSemaphoreCreateMutex()
+
+#define pdMS_TO_TICKS(a)                    (1)
+
+#define no_impl(a)                           do{ printf("%s[%d]\n", __func__, __LINE__); if(a) while(1);}while(0)
+
+#if 1
+//#undef assert
+#define assert(expression)                                                  \
+        do{ if(expression) break;                                           \
+            printf("%s[%d] err: %s\n", __FILE__, __LINE__, #expression);    \
+            while(1);                                                       \
+        }while(0)
+#endif
 //=============================================================================
 //                  Structure Definition
 //=============================================================================
@@ -121,6 +147,10 @@ vTaskDelay(
     const TickType_t    xTicksToDelay);
 
 
+TickType_t
+xTaskGetTickCount(void);
+
+
 QueueHandle_t
 xQueueCreate(
     const UBaseType_t   uxQueueLength,
@@ -143,6 +173,11 @@ xQueueReceive(
     QueueHandle_t   xQueue,
     void            *pvBuffer,
     TickType_t      xTicksToWait);
+
+
+UBaseType_t
+uxQueueMessagesWaiting(
+    QueueHandle_t xQueue);
 
 
 SemaphoreHandle_t

@@ -172,12 +172,36 @@ ssize_t mq_receive(mqd_t msgid, char *msg, size_t msg_len, unsigned int *msg_pri
 
     return queue->uxItemSize;
 }
+
+ssize_t mq_receive_nonblocking(mqd_t msgid, char *msg, size_t msg_len, unsigned int *msg_prio)
+{
+    queue_t* queue = (queue_t*) msgid;
+
+    if ((queue->oflag & O_NONBLOCK) && queue->size == 0)
+        return 0;
+
+    if( queue->size == 0 )
+        return 0;
+
+    pthread_mutex_lock(&(queue->mutex));
+    memcpy(msg, queue->buffer + queue->out * queue->uxItemSize, queue->uxItemSize);
+    -- queue->size;
+    ++ queue->out;
+    queue->out %= queue->capacity;
+    pthread_mutex_unlock(&(queue->mutex));
+    pthread_cond_broadcast(&(queue->cond_full));
+
+    return queue->uxItemSize;
+}
 //=============================================================================
 //                  Public Function Definition
 //=============================================================================
 int
 init_rtos_wrap(void)
 {
+    if( g_is_rtos_wrap_init )
+        return 0;
+
     pthread_mutex_init(&g_log_mtx, 0);
     g_is_rtos_wrap_init = 1;
     return 0;
@@ -255,6 +279,20 @@ vTaskDelay(
     else                    Sleep(1);
 }
 
+TickType_t
+xTaskGetTickCount(void)
+{
+    TickType_t  ticks = 0;
+
+    /**
+     *  GetTickCount() in Kernel32.lib
+     *      The return value is the number of milliseconds that have elapsed since the system was started.
+     */
+    ticks = GetTickCount();
+
+    return ticks;
+}
+
 QueueHandle_t
 xQueueCreate(
     const UBaseType_t   uxQueueLength,
@@ -317,9 +355,25 @@ xQueueReceive(
 {
     _assert(g_is_rtos_wrap_init == 1);
 
+    ssize_t             rst = 0;
     unsigned int        prio;
     my_queue_info_t     *pQ_info = (my_queue_info_t*)xQueue;
-    return mq_receive((mqd_t)pQ_info->hQueue, pvBuffer, pQ_info->node_len, &prio);
+
+    if( xTicksToWait == 0 )
+        rst = mq_receive_nonblocking((mqd_t)pQ_info->hQueue, pvBuffer, pQ_info->node_len, &prio);
+    else
+        rst = mq_receive((mqd_t)pQ_info->hQueue, pvBuffer, pQ_info->node_len, &prio);
+
+    return rst;
+}
+
+UBaseType_t
+uxQueueMessagesWaiting(
+    QueueHandle_t xQueue)
+{
+    my_queue_info_t     *pQ_info = (my_queue_info_t*)xQueue;
+    queue_t             *queue = (queue_t*)pQ_info->hQueue;
+    return queue->size;
 }
 
 SemaphoreHandle_t
