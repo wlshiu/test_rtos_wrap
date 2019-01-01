@@ -13,26 +13,14 @@
 
 #include <stdio.h>
 #include "freertos_warp.h"
-#include <windows.h>
+
+
 //=============================================================================
 //                  Constant Definition
 //=============================================================================
 typedef void* (*routing)(void*);
 
-#define O_ACCMODE           0003
-#define O_RDONLY            00
-#define O_WRONLY            01
-#define O_RDWR              02
-#define O_CREAT             0100 /* not fcntl */
-#define O_EXCL              0200 /* not fcntl */
-#define O_NOCTTY            0400 /* not fcntl */
-#define O_TRUNC             01000 /* not fcntl */
-#define O_APPEND            02000
-#define O_NONBLOCK          04000
-#define O_NDELAY            O_NONBLOCK
-#define O_SYNC              010000
-#define O_FSYNC             O_SYNC
-#define O_ASYNC             020000
+
 //=============================================================================
 //                  Macro Definition
 //=============================================================================
@@ -57,6 +45,26 @@ static pthread_mutex_t          g_log_mtx;
 //=============================================================================
 //                  Structure Definition
 //=============================================================================
+
+#if defined(WIN32)
+
+#include <windows.h>
+
+#define O_ACCMODE           0003
+#define O_RDONLY            00
+#define O_WRONLY            01
+#define O_RDWR              02
+#define O_CREAT             0100 /* not fcntl */
+#define O_EXCL              0200 /* not fcntl */
+#define O_NOCTTY            0400 /* not fcntl */
+#define O_TRUNC             01000 /* not fcntl */
+#define O_APPEND            02000
+#define O_NONBLOCK          04000
+#define O_NDELAY            O_NONBLOCK
+#define O_SYNC              010000
+#define O_FSYNC             O_SYNC
+#define O_ASYNC             020000
+
 typedef struct queue
 {
     uint8_t *buffer;
@@ -78,6 +86,10 @@ struct mq_attr
 } mq_attr_t;
 
 typedef uint32_t    mqd_t;
+#else   /* #if defined(WIN32) */
+
+#endif   /* #if defined(WIN32) */
+
 //=============================================================================
 //                  Global Data Definition
 //=============================================================================
@@ -85,6 +97,7 @@ static int          g_is_rtos_wrap_init = 0;
 //=============================================================================
 //                  Private Function Definition
 //=============================================================================
+#if defined(WIN32)
 static mqd_t
 mq_open(const char *name, int oflag, mode_t mode, struct mq_attr *attr)
 {
@@ -193,6 +206,7 @@ ssize_t mq_receive_nonblocking(mqd_t msgid, char *msg, size_t msg_len, unsigned 
 
     return queue->uxItemSize;
 }
+#endif
 //=============================================================================
 //                  Public Function Definition
 //=============================================================================
